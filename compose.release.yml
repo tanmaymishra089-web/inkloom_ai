@@ -1,0 +1,32 @@
+# Local whole-app route. Production HTTPS uses secure cookies; see render.yaml.
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg16
+    environment:
+      POSTGRES_DB: inkloom
+      POSTGRES_USER: inkloom
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env}
+    volumes: [release_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U inkloom -d inkloom"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://inkloom:${POSTGRES_PASSWORD}@db:5432/inkloom
+      DEMO_ENABLED: "true"
+      DEMO_COOKIE_SECURE: "false"
+      CORS_ORIGINS: '["http://localhost:8017"]'
+      FRONTEND_DIST: /app/frontend_dist
+      EXPOSE_API_DOCS: "false"
+      PORT: "8000"
+    ports: ["127.0.0.1:8017:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+volumes:
+  release_postgres:

@@ -1,0 +1,40 @@
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg16
+    environment:
+      POSTGRES_DB: inkloom
+      POSTGRES_USER: inkloom
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inkloom -d inkloom"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://inkloom:${POSTGRES_PASSWORD}@db:5432/inkloom
+      DEMO_ENABLED: ${DEMO_ENABLED:-false}
+      DEMO_COOKIE_SECURE: ${DEMO_COOKIE_SECURE:-true}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-15}
+      LLM_RETRIES: ${LLM_RETRIES:-1}
+      LLM_MAX_INPUT_CHARS: ${LLM_MAX_INPUT_CHARS:-24000}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-1200}
+      LLM_REVIEW_TIMEOUT: ${LLM_REVIEW_TIMEOUT:-60}
+      LLM_MAX_CALLS: ${LLM_MAX_CALLS:-6}
+      LLM_REVIEW_TOKEN_BUDGET: ${LLM_REVIEW_TOKEN_BUDGET:-100000}
+      LLM_REVIEW_MAX_COST_USD: ${LLM_REVIEW_MAX_COST_USD:-0.50}
+      LLM_INPUT_USD_PER_MILLION: ${LLM_INPUT_USD_PER_MILLION:-4}
+      LLM_OUTPUT_USD_PER_MILLION: ${LLM_OUTPUT_USD_PER_MILLION:-16}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173"]}
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+volumes:
+  postgres_data:
